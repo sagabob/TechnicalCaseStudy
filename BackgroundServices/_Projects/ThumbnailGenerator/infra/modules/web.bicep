@@ -19,8 +19,11 @@ param blobEndpoint string
 @description('Uploads container name for the web app configuration.')
 param uploadsContainerName string
 
-@description('Storage account name for role assignment scope.')
-param storageAccountName string
+@description('Storage account name for optional role assignment scope.')
+param storageAccountName string = ''
+
+@description('Grant the web app managed identity Storage Blob Data Contributor on the storage account. Requires deploy identity to have Microsoft.Authorization/roleAssignments/write (e.g. User Access Administrator).')
+param assignStorageBlobRole bool = false
 
 @description('App Service Plan SKU name.')
 param appServicePlanSku string = 'B1'
@@ -86,13 +89,13 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
   }
 }
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = if (assignStorageBlobRole) {
   name: storageAccountName
 }
 
 var storageBlobDataContributorRoleId = 'ba92f5a4-2d11-452c-a403-96ea6165af5a'
 
-resource blobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource blobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignStorageBlobRole) {
   name: guid(storageAccount.id, webApp.id, storageBlobDataContributorRoleId)
   scope: storageAccount
   properties: {

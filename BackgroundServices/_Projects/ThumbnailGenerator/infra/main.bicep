@@ -53,3 +53,4 @@ output thumbnailsContainerName string = storage.outputs.thumbnailsContainerName
 output appServicePlanName string = web.outputs.appServicePlanName
 output webAppName string = web.outputs.webAppName
 output webAppUrl string = web.outputs.webAppUrl
+output webAppPrincipalId string = web.outputs.webAppPrincipalId

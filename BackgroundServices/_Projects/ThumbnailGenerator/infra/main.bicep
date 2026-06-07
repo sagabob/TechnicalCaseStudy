@@ -32,7 +32,24 @@ module storage './modules/storage.bicep' = {
   }
 }
 
+module web './modules/web.bicep' = {
+  name: 'web-deployment'
+  params: {
+    location: location
+    namePrefix: namePrefix
+    environment: environment
+    uniqueSuffix: uniqueSuffix
+    tags: tags
+    blobEndpoint: storage.outputs.blobEndpoint
+    uploadsContainerName: storage.outputs.uploadsContainerName
+    storageAccountName: storage.outputs.storageAccountName
+  }
+}
+
 output storageAccountName string = storage.outputs.storageAccountName
 output blobEndpoint string = storage.outputs.blobEndpoint
 output uploadsContainerName string = storage.outputs.uploadsContainerName
 output thumbnailsContainerName string = storage.outputs.thumbnailsContainerName
+output appServicePlanName string = web.outputs.appServicePlanName
+output webAppName string = web.outputs.webAppName
+output webAppUrl string = web.outputs.webAppUrl

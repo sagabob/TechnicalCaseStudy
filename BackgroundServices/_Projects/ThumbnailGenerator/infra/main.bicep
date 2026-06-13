@@ -22,16 +22,6 @@ param tags object = {
 
 var uniqueSuffix = uniqueString(resourceGroup().id, namePrefix, environment)
 
-module network './modules/network.bicep' = {
-  name: 'network-deployment'
-  params: {
-    location: location
-    namePrefix: namePrefix
-    environment: environment
-    tags: tags
-  }
-}
-
 module storage './modules/storage.bicep' = {
   name: 'storage-deployment'
   params: {
@@ -53,7 +43,6 @@ module web './modules/web.bicep' = {
     blobEndpoint: storage.outputs.blobEndpoint
     uploadsContainerName: storage.outputs.uploadsContainerName
     storageAccountName: storage.outputs.storageAccountName
-    appServiceIntegrationSubnetId: network.outputs.appServiceIntegrationSubnetId
   }
 }
 
@@ -65,7 +54,3 @@ output appServicePlanName string = web.outputs.appServicePlanName
 output webAppName string = web.outputs.webAppName
 output webAppUrl string = web.outputs.webAppUrl
 output webAppPrincipalId string = web.outputs.webAppPrincipalId
-output vnetName string = network.outputs.vnetName
-output vnetId string = network.outputs.vnetId
-output privateEndpointSubnetId string = network.outputs.privateEndpointSubnetId
-output appServiceIntegrationSubnetId string = network.outputs.appServiceIntegrationSubnetId

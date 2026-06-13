@@ -26,10 +26,13 @@ param storageAccountName string = ''
 param assignStorageBlobRole bool = false
 
 @description('App Service Plan SKU name.')
-param appServicePlanSku string = 'B1'
+param appServicePlanSku string = 'P0v4'
 
 @description('App Service Plan SKU tier.')
-param appServicePlanTier string = 'Basic'
+param appServicePlanTier string = 'PremiumV4'
+
+@description('Subnet resource ID for App Service regional VNet integration.')
+param appServiceIntegrationSubnetId string
 
 var appServicePlanName = 'asp-${namePrefix}-${environment}'
 var webAppName = toLower(take('app-${replace(namePrefix, '-', '')}-${environment}-${uniqueSuffix}', 60))
@@ -86,6 +89,14 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
         }
       ]
     }
+  }
+}
+
+resource vnetIntegration 'Microsoft.Web/sites/networkConfig@2023-12-01' = {
+  parent: webApp
+  name: 'virtualNetwork'
+  properties: {
+    subnetResourceId: appServiceIntegrationSubnetId
   }
 }
 

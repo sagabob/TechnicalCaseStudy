@@ -1,0 +1,38 @@
+%% Demo1 Hub-Spoke Network Architecture
+flowchart TB
+    classDef internet fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef hub fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef spoke fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef security fill:#ffebee,stroke:#c62828,stroke-width:2px
+
+    User["You / Browser"]:::internet
+    Web["Internet<br/>apt / curl"]:::internet
+
+    subgraph RG["Resource Group: rg-demo1-dev"]
+        KV["Key Vault<br/>vm-admin-password"]:::security
+
+        subgraph HUB["HUB — vnet-hub-demo1-dev · 10.0.0.0/16"]
+            subgraph BSN["AzureBastionSubnet · 10.0.1.0/26"]
+                PIP["Public IP<br/>pip-bas-demo1-dev"]:::internet
+                BAS["Azure Bastion<br/>bas-demo1-dev"]:::hub
+            end
+        end
+
+        PEER["VNet Peering<br/>peer-hub-to-spoke ↔ peer-spoke-to-hub"]:::hub
+
+        subgraph SPOKE["SPOKE — vnet-spoke-demo1-dev · 10.1.0.0/16"]
+            subgraph VMNET["snet-vm · 10.1.0.0/24"]
+                NSG["NSG<br/>RDP 3389 from 10.0.1.0/26 only"]:::security
+                VM["vm-demo1-dev<br/>Windows Server · no public IP"]:::spoke
+            end
+        end
+    end
+
+    User -->|"HTTPS 443"| PIP
+    PIP --> BAS
+    BAS -->|"RDP 3389 via peering"| VM
+    HUB <--> PEER
+    PEER <--> SPOKE
+    NSG -.-> VM
+    VM -->|"outbound · platform SNAT"| Web
+    KV -.-> VM

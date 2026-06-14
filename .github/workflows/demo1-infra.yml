@@ -1,0 +1,67 @@
+name: Demo1 Hub-Spoke - Infra
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Infra/Demo1/**'
+      - '.github/workflows/demo1-infra.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  BICEP_ROOT: Infra/Demo1
+  AZURE_RESOURCE_GROUP: rg-demo1-dev
+  AZURE_LOCATION: australiaeast
+
+jobs:
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure resource group exists
+        run: |
+          az group create \
+            --name "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --location "${{ env.AZURE_LOCATION }}"
+
+      - name: What-if
+        run: |
+          az deployment group what-if \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --template-file "${{ env.BICEP_ROOT }}/main.bicep" \
+            --parameters "${{ env.BICEP_ROOT }}/main.dev.bicepparam" \
+            --parameters vmAdminPassword='${{ secrets.DEMO1_VM_ADMIN_PASSWORD }}'
+
+      - name: Deploy Bicep
+        id: deploy
+        run: |
+          az deployment group create \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --name "demo1-${{ github.run_number }}" \
+            --template-file "${{ env.BICEP_ROOT }}/main.bicep" \
+            --parameters "${{ env.BICEP_ROOT }}/main.dev.bicepparam" \
+            --parameters vmAdminPassword='${{ secrets.DEMO1_VM_ADMIN_PASSWORD }}'
+
+      - name: Show outputs
+        run: |
+          az deployment group show \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --name "demo1-${{ github.run_number }}" \
+            --query properties.outputs \
+            -o json

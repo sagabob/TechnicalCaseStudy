@@ -2,6 +2,8 @@
 
 Two ASP.NET Core Web API projects that demonstrate different in-memory caching strategies for product data, both refreshed by a `BackgroundService` (`IHostedService`).
 
+**Per-app documentation:** [WebApi1/README.md](WebApi1/README.md) · [WebApi2/README.md](WebApi2/README.md) · [BackgroundServices overview](../../README.md)
+
 | Project | Pattern | Port (HTTP) |
 |---------|---------|-------------|
 | **WebApi1** | Read-through cache with `IMemoryCache` | `5038` |

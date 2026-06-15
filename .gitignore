@@ -357,6 +357,6 @@ MigrationBackup/
 **/Infra/**/main.json
 
 # Demo1 local secrets (copy secrets.local.ps1.example → secrets.local.ps1)
-Infra/Demo1/secrets.local.ps1
-Infra/Demo2/secrets.local.ps1
-Infra/Demo2/secrets.*.local.ps1
+Infra/Scenarios/Demo1/secrets.local.ps1
+Infra/Scenarios/Demo2/secrets.local.ps1
+Infra/Scenarios/Demo2/secrets.*.local.ps1

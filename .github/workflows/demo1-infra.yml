@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'Infra/Demo1/**'
+      - 'Infra/Scenarios/Demo1/**'
       - '.github/workflows/demo1-infra.yml'
   workflow_dispatch:
 
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  BICEP_ROOT: Infra/Demo1
+  BICEP_ROOT: Infra/Scenarios/Demo1
   AZURE_RESOURCE_GROUP: rg-demo1-dev
   AZURE_LOCATION: australiaeast
 

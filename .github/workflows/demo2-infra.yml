@@ -1,0 +1,82 @@
+name: Demo2 SQL Free - Infra
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy (dev or stage)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - stage
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  BICEP_ROOT: Infra/Scenarios/Demo2
+  AZURE_LOCATION: australiaeast
+
+jobs:
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    env:
+      DEPLOY_ENV: ${{ github.event.inputs.environment }}
+      AZURE_RESOURCE_GROUP: rg-demo2-${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure resource group exists
+        run: |
+          az group create \
+            --name "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --location "${{ env.AZURE_LOCATION }}"
+
+      - name: What-if
+        run: |
+          EXTRA_PARAMS=()
+          if [ -n "${{ secrets.DEMO2_CLIENT_IP }}" ]; then
+            EXTRA_PARAMS+=(--parameters "clientIpAddress=${{ secrets.DEMO2_CLIENT_IP }}")
+          fi
+          az deployment group what-if \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --template-file "${{ env.BICEP_ROOT }}/main.bicep" \
+            --parameters "${{ env.BICEP_ROOT }}/main.${{ env.DEPLOY_ENV }}.bicepparam" \
+            --parameters sqlAdminPassword='${{ secrets.DEMO2_SQL_ADMIN_PASSWORD }}' \
+            "${EXTRA_PARAMS[@]}"
+
+      - name: Deploy Bicep
+        id: deploy
+        run: |
+          EXTRA_PARAMS=()
+          if [ -n "${{ secrets.DEMO2_CLIENT_IP }}" ]; then
+            EXTRA_PARAMS+=(--parameters "clientIpAddress=${{ secrets.DEMO2_CLIENT_IP }}")
+          fi
+          az deployment group create \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --name "demo2-${{ env.DEPLOY_ENV }}-${{ github.run_number }}" \
+            --template-file "${{ env.BICEP_ROOT }}/main.bicep" \
+            --parameters "${{ env.BICEP_ROOT }}/main.${{ env.DEPLOY_ENV }}.bicepparam" \
+            --parameters sqlAdminPassword='${{ secrets.DEMO2_SQL_ADMIN_PASSWORD }}' \
+            "${EXTRA_PARAMS[@]}"
+
+      - name: Show outputs
+        run: |
+          az deployment group show \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --name "demo2-${{ env.DEPLOY_ENV }}-${{ github.run_number }}" \
+            --query properties.outputs \
+            -o json

@@ -25,7 +25,7 @@ rg-demo2-dev                    rg-demo2-stage
 ## File layout
 
 ```
-Infra/Demo2/
+Infra/Scenarios/Demo2/
 ├── main.bicep                 # Root template — wires modules together
 ├── main.dev.bicepparam        # Dev parameters (committed)
 ├── main.stage.bicepparam      # Stage parameters (committed)
@@ -165,7 +165,7 @@ Creates a vault and stores the SQL password as secret `sql-admin-password`. The 
 ### Steps
 
 ```powershell
-cd Infra/Demo2
+cd Infra/Scenarios/Demo2
 
 # 1. Create secrets file
 Copy-Item secrets.local.ps1.example secrets.local.ps1
@@ -193,7 +193,7 @@ Stage is a **separate environment** with its own parameter file and resource gro
 ### Steps
 
 ```powershell
-cd Infra/Demo2
+cd Infra/Scenarios/Demo2
 
 # 1. Stage-specific secrets (recommended)
 Copy-Item secrets.stage.local.ps1.example secrets.stage.local.ps1
@@ -307,6 +307,29 @@ Dev and stage are **fully isolated** — different resource groups, different `u
 
 ---
 
+## GitHub Actions (CI)
+
+Workflows live under `.github/workflows/` and point at `Infra/Scenarios/`.
+
+| Workflow | Path trigger | Resource group |
+|----------|--------------|----------------|
+| `demo1-infra.yml` | `Infra/Scenarios/Demo1/**` | `rg-demo1-dev` |
+| `demo2-infra.yml` | `Infra/Scenarios/Demo2/**` | `rg-demo2-dev` or `rg-demo2-stage` |
+
+**Demo2 secrets** (per GitHub environment `dev` / `stage`):
+
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `AZURE_CLIENT_ID` | Yes | OIDC login |
+| `AZURE_TENANT_ID` | Yes | OIDC login |
+| `AZURE_SUBSCRIPTION_ID` | Yes | OIDC login |
+| `DEMO2_SQL_ADMIN_PASSWORD` | Yes | SQL admin password |
+| `DEMO2_CLIENT_IP` | No | Your PC public IP for `AllowClientIp` firewall rule |
+
+Push to `main` no longer triggers a deploy. Run **Demo2 SQL Free - Infra** manually from the Actions tab (workflow_dispatch) and choose **dev** or **stage**.
+
+---
+
 ## Free offer limits
 
 - Up to **10** free-offer databases per Azure subscription
@@ -341,7 +364,7 @@ No changes to `modules/sql.bicep` are required — the `environment` parameter d
 | `Client with IP ... is not allowed` | Firewall missing your IP | Redeploy or add `AllowClientIp` rule |
 | `useFreeLimit` deployment warning | Old API version | Ensure database uses `@2023-08-01` |
 | Password with `@` or `!` fails | Shell escaping | Use `secrets.local.ps1` + deploy script (avoids manual quoting) |
-| Script parse error | PowerShell syntax | Run from `Infra/Demo2/scripts/deploy.ps1` |
+| Script parse error | PowerShell syntax | Run from `Infra/Scenarios/Demo2/scripts/deploy.ps1` |
 
 ---
 

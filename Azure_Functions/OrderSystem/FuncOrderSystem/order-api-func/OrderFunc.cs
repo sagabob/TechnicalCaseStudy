@@ -1,6 +1,4 @@
-using System.IO;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Azure.Messaging.ServiceBus;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -19,10 +17,7 @@ public class OrderFunc(ILogger<OrderFunc> logger, ServiceBusClient serviceBusCli
         using var reader = new StreamReader(req.Body);
         var body = await reader.ReadToEndAsync();
 
-        if (string.IsNullOrWhiteSpace(body))
-        {
-            return new BadRequestObjectResult(new { error = "Empty request body" });
-        }
+        if (string.IsNullOrWhiteSpace(body)) return new BadRequestObjectResult(new { error = "Empty request body" });
 
         JsonDocument doc;
         try
@@ -34,10 +29,8 @@ public class OrderFunc(ILogger<OrderFunc> logger, ServiceBusClient serviceBusCli
             return new BadRequestObjectResult(new { error = "Invalid JSON" });
         }
 
-        if (!TryValidateOrder(doc.RootElement, out var validationMessage))
-        {
+        if (!OrderValidator.TryValidateOrder(doc.RootElement, out var validationMessage))
             return new BadRequestObjectResult(new { error = validationMessage });
-        }
 
         var queueName = Environment.GetEnvironmentVariable("QUEUE_NAME") ?? "orders-queue";
 
@@ -56,39 +49,5 @@ public class OrderFunc(ILogger<OrderFunc> logger, ServiceBusClient serviceBusCli
         }
     }
 
-    private static bool TryValidateOrder(JsonElement root, out string message)
-    {
-        message = string.Empty;
-        string[] requiredFields = { "customerName", "email", "items", "totalAmount", "orderDate" };
 
-        foreach (var field in requiredFields)
-        {
-            if (root.TryGetProperty(field, out _)) continue;
-            message = $"Missing required field: {field}";
-            return false;
-        }
-
-        if (!root.TryGetProperty("items", out var itemsElement) || itemsElement.ValueKind != JsonValueKind.Array || itemsElement.GetArrayLength() == 0)
-        {
-            message = "Order items must be a non-empty list";
-            return false;
-        }
-
-        foreach (var item in itemsElement.EnumerateArray())
-        {
-            if (!item.TryGetProperty("productId", out _ ) || !item.TryGetProperty("quantity", out var qtyElement))
-            {
-                message = "Each item must have productId and quantity";
-                return false;
-            }
-
-            if (qtyElement.ValueKind == JsonValueKind.Number && qtyElement.TryGetInt32(out var qty) &&
-                qty > 0) continue;
-            message = "Item quantity must be a positive number";
-            return false;
-        }
-
-        message = "Order is valid";
-        return true;
-    }
 }

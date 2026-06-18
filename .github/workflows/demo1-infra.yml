@@ -1,12 +1,6 @@
 name: Demo1 Hub-Spoke - Infra
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'Infra/Scenarios/Demo1/**'
-      - '.github/workflows/demo1-infra.yml'
   workflow_dispatch:
 
 permissions:

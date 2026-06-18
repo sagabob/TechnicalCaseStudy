@@ -2,12 +2,6 @@ name: Thumbnail Generator - Docker
 
 # Pushes to a public Docker Hub repository (pull requires no auth; push uses secrets below).
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'BackgroundServices/_Projects/ThumbnailGenerator/WebAppSln/**'
-      - '.github/workflows/thumbnail-generator-docker.yml'
   workflow_dispatch:
 
 env:

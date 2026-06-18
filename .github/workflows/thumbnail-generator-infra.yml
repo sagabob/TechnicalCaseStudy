@@ -1,12 +1,6 @@
 name: Thumbnail Generator - Infra
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'BackgroundServices/_Projects/ThumbnailGenerator/infra/**'
-      - '.github/workflows/thumbnail-generator-infra.yml'
   workflow_dispatch:
 
 permissions:

@@ -1,6 +1,8 @@
 # Demo2 — Bicep deployment guide
 
-This guide walks through the **Demo2** infrastructure: a minimal Azure SQL stack with the free offer, Key Vault, and client-IP firewall rules. It explains how Bicep files fit together and how to deploy **dev** and **stage** environments.
+> **Scenario overview:** see [../README.md](../README.md) for architecture, resources, and quick-start deploy.
+
+This guide walks through the **Demo2** Bicep files in detail: modules, parameters, multi-environment deploy, and troubleshooting.
 
 ## What gets deployed
 
@@ -309,24 +311,9 @@ Dev and stage are **fully isolated** — different resource groups, different `u
 
 ## GitHub Actions (CI)
 
-Workflows live under `.github/workflows/` and point at `Infra/Scenarios/`.
+Workflow: [`.github/workflows/demo2-infra.yml`](../../../../.github/workflows/demo2-infra.yml) — **manual only** (`workflow_dispatch`). See [../README.md](../README.md) for secrets and environment setup.
 
-| Workflow | Path trigger | Resource group |
-|----------|--------------|----------------|
-| `demo1-infra.yml` | `Infra/Scenarios/Demo1/**` | `rg-demo1-dev` |
-| `demo2-infra.yml` | `Infra/Scenarios/Demo2/**` | `rg-demo2-dev` or `rg-demo2-stage` |
-
-**Demo2 secrets** (per GitHub environment `dev` / `stage`):
-
-| Secret | Required | Purpose |
-|--------|----------|---------|
-| `AZURE_CLIENT_ID` | Yes | OIDC login |
-| `AZURE_TENANT_ID` | Yes | OIDC login |
-| `AZURE_SUBSCRIPTION_ID` | Yes | OIDC login |
-| `DEMO2_SQL_ADMIN_PASSWORD` | Yes | SQL admin password |
-| `DEMO2_CLIENT_IP` | No | Your PC public IP for `AllowClientIp` firewall rule |
-
-Push to `main` no longer triggers a deploy. Run **Demo2 SQL Free - Infra** manually from the Actions tab (workflow_dispatch) and choose **dev** or **stage**.
+Run **Demo2 SQL Free - Infra** from the Actions tab and choose **dev** or **stage**.
 
 ---
 

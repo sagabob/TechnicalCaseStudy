@@ -360,3 +360,7 @@ MigrationBackup/
 Infra/Scenarios/Demo1/secrets.local.ps1
 Infra/Scenarios/Demo2/secrets.local.ps1
 Infra/Scenarios/Demo2/secrets.*.local.ps1
+
+# GisImport
+GisImport/.env
+GisImport/.venv/

@@ -58,6 +58,5 @@ Large `data/` dumps (`.geojson`, `.json`, `.zip`) are gitignored — keep them l
 ```
 TechnicalCaseStudy/
 ├── README.md
-├── GisImport/          # GIS import + Mongo fix tools
-└── .github/workflows/  # CI / infra workflows
+└── GisImport/          # GIS import + Mongo fix tools
 ```

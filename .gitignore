@@ -364,3 +364,9 @@ Infra/Scenarios/Demo2/secrets.*.local.ps1
 # GisImport
 GisImport/.env
 GisImport/.venv/
+GisImport/data/**/*.geojson
+GisImport/data/**/*.json
+GisImport/data/**/*.zip
+GisImport/Data/**/*.geojson
+GisImport/Data/**/*.json
+GisImport/Data/**/*.zip

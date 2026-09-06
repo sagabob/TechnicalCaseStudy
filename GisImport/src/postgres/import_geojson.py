@@ -4,7 +4,7 @@ import argparse
 import sys
 from typing import Any, Callable
 
-from src.config import (
+from src.postgres.config import (
     COMMIT_EVERY,
     DATA_ORIGIN,
     FUNCTIONS_SQL,
@@ -14,7 +14,7 @@ from src.config import (
     SCHEMA_SQL,
     layer_dir,
 )
-from src.db import (
+from src.postgres.db import (
     apply_functions,
     apply_schema,
     connect,

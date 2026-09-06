@@ -1,10 +1,10 @@
-"""Quick DB connectivity check (no secrets printed)."""
+"""Quick Postgres connectivity check (no secrets printed)."""
 from __future__ import annotations
 
 import sys
 
-from src.config import load_database_url
-from src.db import connect
+from src.postgres.config import load_database_url
+from src.postgres.db import connect
 
 
 def main() -> int:
@@ -18,7 +18,7 @@ def main() -> int:
             with conn.cursor() as cur:
                 cur.execute("SELECT version(), current_database(), current_user")
                 version, db, user = cur.fetchone()
-                print(f"OK — database={db}, user={user}")
+                print(f"OK - database={db}, user={user}")
                 print(f"Postgres: {version.split(',')[0]}")
 
                 cur.execute("SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'postgis')")

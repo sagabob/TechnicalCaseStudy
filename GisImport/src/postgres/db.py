@@ -5,16 +5,17 @@ from pathlib import Path
 from typing import Any
 
 import psycopg
-from shapely.geometry import MultiPoint, MultiPolygon, Point, Polygon, mapping, shape
+from shapely.geometry import mapping, shape
 from shapely.geometry.base import BaseGeometry
 
-from src.config import (
+from src.postgres.config import (
     DB_SCHEMA,
     FUNCTIONS_SQL,
     GEOMETRY_SRID,
     SCHEMA_SQL,
     load_database_url,
 )
+from src.geometry import as_point, as_polygon
 
 
 def connect() -> psycopg.Connection:
@@ -42,28 +43,6 @@ def apply_functions(conn: psycopg.Connection) -> None:
 def _geom_geojson(geom: BaseGeometry) -> str:
     """Serialize Shapely geometry to GeoJSON text for ST_GeomFromGeoJSON."""
     return json.dumps(mapping(geom))
-
-
-def as_point(geom: BaseGeometry) -> Point:
-    """Normalize GeoJSON MultiPoint/Point to a single Point."""
-    if isinstance(geom, Point):
-        return geom
-    if isinstance(geom, MultiPoint):
-        if geom.is_empty or len(geom.geoms) == 0:
-            raise ValueError("Empty MultiPoint")
-        return geom.geoms[0]
-    raise ValueError(f"Expected Point or MultiPoint, got {geom.geom_type}")
-
-
-def as_polygon(geom: BaseGeometry) -> Polygon:
-    """Normalize GeoJSON MultiPolygon/Polygon to a single Polygon (first part if multi)."""
-    if isinstance(geom, Polygon):
-        return geom
-    if isinstance(geom, MultiPolygon):
-        if geom.is_empty or len(geom.geoms) == 0:
-            raise ValueError("Empty MultiPolygon")
-        return geom.geoms[0]
-    raise ValueError(f"Expected Polygon or MultiPolygon, got {geom.geom_type}")
 
 
 def upsert_place_name(

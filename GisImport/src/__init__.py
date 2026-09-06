@@ -1,1 +1,1 @@
-"""GisImport — GeoJSON to Postgres importer."""
+"""GisImport — GeoJSON / GIS tooling for Postgres and MongoDB."""

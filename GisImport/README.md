@@ -1,24 +1,24 @@
-# GisImport — GeoJSON to Postgres
+# GisImport — GeoJSON to Postgres / Mongo tools
 
-Import Christchurch Origin GeoJSON layers into **Postgres + PostGIS** (schema `ccc`).
+Import Christchurch Origin GeoJSON into **Postgres + PostGIS** (schema `ccc`), and fix Multi* geometries in **MongoDB** (`ccc_db`).
 
-| Layer folder | Table | Geometry | Extra |
-|--------------|-------|----------|--------|
-| `Data/Origin/vwPlaceName` | `ccc.place_name` | Point | — |
-| `Data/Origin/vwPark` | `ccc.park` | Polygon | `center_point` (centroid) |
-| `Data/Origin/vwStreetAddress` | `ccc.street_address` | Point | — |
-| `Data/Origin/vwRatingUnit` | `ccc.rating_unit` | Polygon | `center_point` (centroid) |
+| Layer folder | Postgres table | Mongo collection | Geometry |
+|--------------|----------------|------------------|----------|
+| `data/Origin/vwPlaceName` | `ccc.place_name` | `place_names` | Point (`center_point` N/A) |
+| `data/Origin/vwPark` | `ccc.park` | `parks` | Polygon + `center_point` (Postgres) |
+| `data/Origin/vwStreetAddress` | `ccc.street_address` | `street_addresses` | Point |
+| `data/Origin/vwRatingUnit` | `ccc.rating_unit` | `ratingunits` | Polygon + `center_point` (Postgres) |
 
-Source MultiPoint / MultiPolygon features are normalised to Point / Polygon on import. For parks and rating units, `center_point` is set with `ST_Centroid(geom)`.
-
-Approximate file counts (one feature per file): place_name ~2.1k, park ~1.1k, street_address ~183k, rating_unit ~169k.
+Source MultiPoint / MultiPolygon features are normalised to Point / Polygon (first part). Parks and rating units get `center_point` via `ST_Centroid(geom)` in Postgres.
 
 ## Prerequisites
 
 - Python 3.11+
-- Postgres with **PostGIS**
+- Postgres with **PostGIS** (for import)
+- MongoDB reachable via `MONGO_URI` (for Mongo tools)
 - A database already created (e.g. `gis` / `gisimport`)
-- Cloud hosts (e.g. Aiven): TLS — `sslmode=require` is appended automatically if missing from `DATABASE_URL`
+
+Cloud Postgres (e.g. Aiven): `sslmode=require` is appended automatically if missing from `DATABASE_URL`.
 
 ## Setup
 
@@ -31,76 +31,94 @@ python -m venv .venv
 pip install -r requirements.txt
 
 Copy-Item .env.example .env
-# Edit .env — set DATABASE_URL, e.g.
-# DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require
+# Set DATABASE_URL and/or MONGO_URI
 ```
 
-Optional: check connectivity before importing:
+Connectivity checks:
 
 ```powershell
-python -m scripts.check_connection
+python -m scripts.postgres.check_connection
+python -m scripts.mongo.check_connection
 ```
 
-## Schema and functions
+Optional Postgres schema helper (same as `--schema-only`; destructive):
+
+```powershell
+python -m scripts.postgres.create_schema
+```
+
+## Postgres schema and functions
 
 Schema is **not** applied by default. Recreating schema **drops all four tables**.
 
 ```powershell
-# Create / recreate tables only
-python -m src.import_geojson --schema-only
-
-# Apply spatial helper functions only
-python -m src.import_geojson --functions-only
+python -m src.postgres.import_geojson --schema-only
+python -m src.postgres.import_geojson --functions-only
 ```
 
-## Run import
-
-Upserts into existing tables (safe to re-run; conflict on primary keys):
+## Postgres import
 
 ```powershell
 cd GisImport
 .\.venv\Scripts\Activate.ps1
 
 # All layers
-python -m src.import_geojson
+python -m src.postgres.import_geojson
 
-# One layer at a time
-python -m src.import_geojson --layer place_name
-python -m src.import_geojson --layer park
-python -m src.import_geojson --layer street_address
-python -m src.import_geojson --layer rating_unit
+# One layer
+python -m src.postgres.import_geojson --layer place_name
+python -m src.postgres.import_geojson --layer park
+python -m src.postgres.import_geojson --layer street_address
+python -m src.postgres.import_geojson --layer rating_unit
 ```
 
 ### First-time / after schema changes
 
 ```powershell
-python -m src.import_geojson --schema-only
-python -m src.import_geojson --layer place_name
-python -m src.import_geojson --layer park
-python -m src.import_geojson --layer street_address
-python -m src.import_geojson --layer rating_unit
-python -m src.import_geojson --functions-only
+python -m src.postgres.import_geojson --schema-only
+python -m src.postgres.import_geojson --layer place_name
+python -m src.postgres.import_geojson --layer park
+python -m src.postgres.import_geojson --layer street_address
+python -m src.postgres.import_geojson --layer rating_unit
+python -m src.postgres.import_geojson --functions-only
 ```
 
-Or recreate schema then import everything in one go:
+Or:
 
 ```powershell
-python -m src.import_geojson --apply-schema --apply-functions
+python -m src.postgres.import_geojson --apply-schema --apply-functions
 ```
 
 ### CLI flags
 
 | Flag | Effect |
 |------|--------|
-| `--layer {all,place_name,park,street_address,rating_unit}` | Which layer to import (default: `all`) |
+| `--layer {all,place_name,park,street_address,rating_unit}` | Which layer (default: `all`) |
 | `--apply-schema` | Run `sql/001_schema.sql` before import (destructive) |
-| `--schema-only` | Apply schema only; no import |
+| `--schema-only` | Apply schema only |
 | `--apply-functions` | Apply `sql/002_spatial_functions.sql` before import |
-| `--functions-only` | Apply functions only; no import |
+| `--functions-only` | Apply functions only |
+
+## Fix Mongo geometries
+
+Convert `MultiPoint` → `Point` and `MultiPolygon` → `Polygon` on `geometry` (first part if multi).
+
+Default collections: `place_names`, `street_addresses`, `parks`, `ratingunits`.
+
+```powershell
+# Dry-run (default) — counts + sample conversions, no writes
+python -m src.mongo.fix_geometries
+
+# Apply updates
+python -m src.mongo.fix_geometries --apply
+
+# One collection
+python -m src.mongo.fix_geometries --collection parks --apply
+```
 
 ## Spatial SQL functions
 
-Distances use geography (metres). Park / rating-unit **nearest** helpers use `center_point`; **containing** helpers use the polygon `geom`.
+Distances use geography (metres). Park / rating-unit **nearest** helpers use `center_point`; **containing** helpers use polygon `geom`.
 
 | Function | Purpose |
 |----------|---------|
@@ -114,50 +132,17 @@ Distances use geography (metres). Park / rating-unit **nearest** helpers use `ce
 | `ccc.nearest_rating_units(lon, lat, radius_m, limit)` | Rating units within radius (by centroid) |
 | `ccc.rating_units_containing_point(lon, lat)` | Rating unit polygon contains point |
 
-Example:
-
 ```sql
 SELECT * FROM ccc.nearest_parks(172.6362, -43.5321, 1000, 10);
-SELECT * FROM ccc.nearest_place_names(172.6362, -43.5321, 500, 10);
 SELECT * FROM ccc.nearest_street_addresses(172.6362, -43.5321, 200, 10);
-SELECT * FROM ccc.parks_containing_point(172.6362, -43.5321);
 ```
 
-## Verify
+## Verify (Postgres)
 
 ```sql
-SELECT PostGIS_Version();
-
-SELECT COUNT(*) AS place_names FROM ccc.place_name;
-SELECT COUNT(*) AS parks FROM ccc.park;
-SELECT COUNT(*) AS street_addresses FROM ccc.street_address;
-SELECT COUNT(*) AS rating_units FROM ccc.rating_unit;
-
-SELECT place_name_id, place_name, locality, ST_AsText(geom)
-FROM ccc.place_name
-ORDER BY place_name_id
-LIMIT 5;
-
-SELECT park_id, park_name, ST_GeometryType(geom), ST_AsText(center_point)
-FROM ccc.park
-ORDER BY park_id
-LIMIT 5;
-
-SELECT street_address_id, street_address, locality_name, ST_AsText(geom)
-FROM ccc.street_address
-ORDER BY street_address_id
-LIMIT 5;
-
-SELECT rating_unit_id, street_address, ST_GeometryType(geom), ST_AsText(center_point)
-FROM ccc.rating_unit
-ORDER BY rating_unit_id
-LIMIT 5;
-```
-
-From PowerShell:
-
-```powershell
-psql $env:DATABASE_URL -c "SELECT COUNT(*) FROM ccc.place_name; SELECT COUNT(*) FROM ccc.park;"
+SELECT COUNT(*) FROM ccc.place_name;
+SELECT COUNT(*) FROM ccc.park;
+SELECT park_id, park_name, ST_AsText(center_point) FROM ccc.park LIMIT 5;
 ```
 
 ## Layout
@@ -167,14 +152,25 @@ GisImport/
 ├── .env.example
 ├── requirements.txt
 ├── README.md
-├── Data/Origin/                 # GeoJSON source files
+├── data/Origin/                 # GeoJSON source files
 ├── sql/
-│   ├── 001_schema.sql           # PostGIS + ccc tables
+│   ├── 001_schema.sql
 │   └── 002_spatial_functions.sql
 ├── scripts/
-│   └── check_connection.py
+│   ├── postgres/
+│   │   ├── check_connection.py
+│   │   └── create_schema.py
+│   └── mongo/
+│       └── check_connection.py
 └── src/
-    ├── config.py
-    ├── db.py
-    └── import_geojson.py
+    ├── config.py                # PROJECT_ROOT + .env load
+    ├── geometry.py              # Multi* → Point/Polygon
+    ├── postgres/
+    │   ├── config.py
+    │   ├── db.py
+    │   └── import_geojson.py
+    └── mongo/
+        ├── config.py
+        ├── client.py
+        └── fix_geometries.py
 ```

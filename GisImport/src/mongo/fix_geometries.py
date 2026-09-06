@@ -17,6 +17,27 @@ from src.mongo.client import connect
 
 MULTI_TYPES = ("MultiPoint", "MultiPolygon")
 SAMPLE_LIMIT = 3
+# Print progress every N documents (also at end)
+PROGRESS_EVERY = 2000
+
+
+def _progress_line(
+    col_name: str,
+    processed: int,
+    total: int,
+    *,
+    apply: bool,
+    stats: dict[str, int],
+) -> str:
+    pct = (100.0 * processed / total) if total else 100.0
+    if apply:
+        detail = f"updated={stats['updated']}"
+    else:
+        detail = f"would_update={stats['would_update']}"
+    return (
+        f"  {col_name}: {processed}/{total} ({pct:.1f}%) "
+        f"{detail}, errors={stats['errors']}"
+    )
 
 
 def _fix_collection(
@@ -24,6 +45,7 @@ def _fix_collection(
     *,
     apply: bool,
     batch_size: int,
+    progress_every: int = PROGRESS_EVERY,
     sample_limit: int = SAMPLE_LIMIT,
 ) -> dict[str, int]:
     query = {"geometry.type": {"$in": list(MULTI_TYPES)}}
@@ -44,40 +66,56 @@ def _fix_collection(
     cursor = col.find(query, {"geometry": 1})
     ops: list[UpdateOne] = []
     samples_shown = 0
+    processed = 0
 
     for doc in cursor:
+        processed += 1
         try:
             geom = doc.get("geometry")
             if not isinstance(geom, dict):
                 stats["skipped"] += 1
-                continue
-            old_type = geom.get("type")
-            new_geom = normalize_geojson_geometry(geom)
-            if new_geom is None:
-                stats["skipped"] += 1
-                continue
-
-            if samples_shown < sample_limit:
-                samples_shown += 1
-                print(
-                    f"    sample {_id_preview(doc)}: {old_type} -> {new_geom['type']}"
-                )
-
-            if apply:
-                ops.append(UpdateOne({"_id": doc["_id"]}, {"$set": {"geometry": new_geom}}))
-                if len(ops) >= batch_size:
-                    result = col.bulk_write(ops, ordered=False)
-                    stats["updated"] += result.modified_count
-                    ops.clear()
             else:
-                stats["would_update"] += 1
+                old_type = geom.get("type")
+                new_geom = normalize_geojson_geometry(geom)
+                if new_geom is None:
+                    stats["skipped"] += 1
+                else:
+                    if samples_shown < sample_limit:
+                        samples_shown += 1
+                        print(
+                            f"    sample {_id_preview(doc)}: {old_type} -> {new_geom['type']}"
+                        )
+
+                    if apply:
+                        ops.append(
+                            UpdateOne(
+                                {"_id": doc["_id"]},
+                                {"$set": {"geometry": new_geom}},
+                            )
+                        )
+                        if len(ops) >= batch_size:
+                            result = col.bulk_write(ops, ordered=False)
+                            stats["updated"] += result.modified_count
+                            ops.clear()
+                    else:
+                        stats["would_update"] += 1
         except Exception as ex:  # noqa: BLE001
             stats["errors"] += 1
             print(f"    ERROR {_id_preview(doc)}: {ex}", file=sys.stderr)
 
+        if processed % progress_every == 0 or processed == total:
+            print(
+                _progress_line(col.name, processed, total, apply=apply, stats=stats),
+                flush=True,
+            )
+
     if apply and ops:
         result = col.bulk_write(ops, ordered=False)
         stats["updated"] += result.modified_count
+        print(
+            _progress_line(col.name, processed, total, apply=apply, stats=stats),
+            flush=True,
+        )
 
     if apply:
         print(f"  {col.name} done: updated={stats['updated']}, errors={stats['errors']}")
@@ -122,6 +160,12 @@ def main(argv: list[str] | None = None) -> int:
         default=MONGO_BATCH_SIZE,
         help=f"bulk_write batch size (default: {MONGO_BATCH_SIZE})",
     )
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=PROGRESS_EVERY,
+        help=f"Print progress every N documents (default: {PROGRESS_EVERY})",
+    )
     args = parser.parse_args(argv)
 
     collections = args.collections or list(MONGO_DEFAULT_COLLECTIONS)
@@ -142,6 +186,7 @@ def main(argv: list[str] | None = None) -> int:
                 db[name],
                 apply=args.apply,
                 batch_size=args.batch_size,
+                progress_every=max(1, args.progress_every),
             )
             for key in totals:
                 totals[key] += stats[key]
